@@ -1,0 +1,1611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BatterySwelling: Artemis Crew Rover Prismatic Cell Mechanical Creep Tracker</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <!-- MathJax v3 (Pre-configured for Bulletproof Formula Rendering) -->
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']]
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #040711;
+      color: #e2e8f0;
+      overflow-x: hidden;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .formula-box {
+      background-color: #020617;
+      border: 1px solid #1e293b;
+      padding: 0.75rem 1rem;
+      border-radius: 0.5rem;
+      color: #38bdf8;
+      font-size: 0.875rem;
+      overflow-x: auto;
+      margin: 0.5rem 0;
+    }
+    /* Custom Scrollbar for Sleek Aerospace Cockpit View */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #090d1a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1e293b;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #38bdf8;
+    }
+    .glow-cyan {
+      box-shadow: 0 0 15px rgba(6, 182, 212, 0.25);
+    }
+    .glow-rose {
+      box-shadow: 0 0 15px rgba(244, 63, 94, 0.3);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col bg-[#040711] text-slate-200">
+
+  <!-- TOP AEROSPACE HEADER / TELEMETRY STATUS BAR -->
+  <header class="border-b border-slate-800 bg-[#070b18]/90 backdrop-blur sticky top-0 z-50 px-4 lg:px-8 py-3">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center space-x-3">
+        <div class="p-2 bg-cyan-950/80 border border-cyan-500/40 rounded-lg text-cyan-400">
+          <i data-lucide="shield-alert" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <span class="text-xs font-semibold uppercase tracking-wider text-cyan-400 bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-800">
+              NASA SBIR / Artemis-VI Tech
+            </span>
+            <span class="text-xs font-mono text-slate-400">TRL-5 Mechanical Observer</span>
+          </div>
+          <h1 class="text-lg md:text-xl font-bold tracking-tight text-white flex items-center gap-2">
+            BatterySwelling: Artemis Crew Rover Prismatic Cell Creep Tracker
+          </h1>
+        </div>
+      </div>
+
+      <!-- Quick Telemetry HUD Chips -->
+      <div class="flex items-center gap-3 font-mono text-xs">
+        <div class="bg-slate-900/80 border border-slate-800 rounded-lg px-3 py-1.5 flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+          <span class="text-slate-400">MODULE STATUS:</span>
+          <span id="headerStatusBadge" class="text-emerald-400 font-bold">NOMINAL_CONTAINMENT</span>
+        </div>
+        <div class="bg-slate-900/80 border border-slate-800 rounded-lg px-3 py-1.5 flex items-center gap-2">
+          <span class="text-slate-400">BOLT TENSION:</span>
+          <span id="headerBoltTension" class="text-cyan-400 font-bold">14.2 kN</span>
+        </div>
+        <div class="bg-slate-900/80 border border-slate-800 rounded-lg px-3 py-1.5 flex items-center gap-2">
+          <span class="text-slate-400">DERATING:</span>
+          <span id="headerDerateEnvelope" class="text-amber-400 font-bold">100.0% SOC Max</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- PRIMARY 4-TAB NAVIGATION -->
+    <div class="max-w-7xl mx-auto mt-3 flex border-b border-slate-800 space-x-1">
+      <button id="tabBtnSim" onclick="switchTab('sim')" class="px-4 py-2 text-sm font-medium border-b-2 border-cyan-500 text-cyan-400 flex items-center gap-2 transition-colors">
+        <i data-lucide="gauge" class="w-4 h-4"></i> Live Telemetry & Simulation
+      </button>
+      <button id="tabBtnPhysics" onclick="switchTab('physics')" class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2 transition-colors">
+        <i data-lucide="atom" class="w-4 h-4"></i> Core Physics & Formulation
+      </button>
+      <button id="tabBtnProposal" onclick="switchTab('proposal')" class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2 transition-colors">
+        <i data-lucide="file-text" class="w-4 h-4"></i> $225k NASA SBIR Proposal
+      </button>
+      <button id="tabBtnARR" onclick="switchTab('arr')" class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2 transition-colors">
+        <i data-lucide="trending-up" class="w-4 h-4"></i> Commercial ARR ($214.2M)
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN VIEWPORT CONTAINER -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 lg:p-6 space-y-6">
+
+    <!-- ============================================================== -->
+    <!-- TAB 1: LIVE SIMULATION & TELEMETRY HUD                         -->
+    <!-- ============================================================== -->
+    <div id="viewSim" class="space-y-6">
+      <!-- Top Alert / Active Intervention Banner -->
+      <div id="interventionBanner" class="p-3 rounded-lg border border-slate-800 bg-slate-900/60 backdrop-blur flex items-center justify-between transition-all">
+        <div class="flex items-center gap-3">
+          <div id="statusIconContainer" class="p-2 rounded bg-emerald-950 border border-emerald-500/30 text-emerald-400">
+            <i data-lucide="shield-check" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <span id="activeSafetyModeBadge" class="px-2 py-0.5 text-xs font-mono font-bold rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                ACTIVE MODE: NOMINAL LUNAR TRAVERSE
+              </span>
+              <span class="text-xs text-slate-400 font-mono">Loop Rate: 25 Hz Realtime Filtering</span>
+            </div>
+            <p id="safetyNarrative" class="text-xs text-slate-300 mt-0.5">
+              Reversible intercalation swelling within elastic bounds ($F_0 < 16.0\text{ kN}$). Restraining endplates operating below 68% yield stress.
+            </p>
+          </div>
+        </div>
+        <div class="text-right font-mono text-xs">
+          <span class="text-slate-400">Yield Margin of Safety:</span>
+          <span id="yieldMarginValue" class="text-emerald-400 font-bold ml-1 text-sm">+1.84 MOS</span>
+        </div>
+      </div>
+
+      <!-- Top Row: Interactive Hardware Visualizer & Phase-Space Chart -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- Interactive Hardware Cross-Section (Canvas) -->
+        <div class="lg:col-span-5 bg-slate-900/50 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <h2 class="text-sm font-semibold tracking-wide text-white flex items-center gap-2">
+                <i data-lucide="cpu" class="w-4 h-4 text-cyan-400"></i> Prismatic Pack Structural Cross-Section
+              </h2>
+              <span class="text-[11px] font-mono text-slate-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+                8S1P Prismatic Sub-Module
+              </span>
+            </div>
+            <p class="text-xs text-slate-400 mb-3">
+              Dynamic physical rendering of reversible $Li^+$ lattice expansion, dead lithium SEI buildup, tie-rod strain, and thin-film piezo load sensor deflection.
+            </p>
+          </div>
+
+          <!-- Canvas Container -->
+          <div class="relative w-full bg-[#030611] rounded-lg border border-slate-800/80 overflow-hidden flex items-center justify-center min-h-[260px]">
+            <canvas id="packCanvas" class="w-full h-full block"></canvas>
+            <!-- Canvas HUD Overlay Badges -->
+            <div class="absolute top-2 left-2 flex flex-col gap-1 pointer-events-none">
+              <span class="text-[10px] font-mono bg-slate-950/80 text-cyan-400 border border-cyan-800 px-1.5 py-0.5 rounded">
+                Thin-Film Piezoresistive Array: ONLINE
+              </span>
+              <span id="canvasOverlayDisplacement" class="text-[10px] font-mono bg-slate-950/80 text-amber-400 border border-amber-800 px-1.5 py-0.5 rounded">
+                $\Delta L_{\text{stack}}$: +0.42 mm
+              </span>
+            </div>
+          </div>
+
+          <!-- Quick Hardware Legend -->
+          <div class="grid grid-cols-4 gap-2 mt-3 pt-3 border-t border-slate-800/80 text-[10px] font-mono text-slate-400 text-center">
+            <div class="p-1 rounded bg-slate-950 border border-slate-800">
+              <span class="inline-block w-2 h-2 rounded bg-cyan-400 mr-1"></span> Li-Ion Active
+            </div>
+            <div class="p-1 rounded bg-slate-950 border border-slate-800">
+              <span class="inline-block w-2 h-2 rounded bg-amber-500 mr-1"></span> SEI / Plated Li
+            </div>
+            <div class="p-1 rounded bg-slate-950 border border-slate-800">
+              <span class="inline-block w-2 h-2 rounded bg-indigo-400 mr-1"></span> Load Sensors
+            </div>
+            <div class="p-1 rounded bg-slate-950 border border-slate-800">
+              <span class="inline-block w-2 h-2 rounded bg-slate-500 mr-1"></span> Ti-Al Endplate
+            </div>
+          </div>
+        </div>
+
+        <!-- Primary Diagnostic Phase-Space Chart: F vs Q -->
+        <div class="lg:col-span-7 bg-slate-900/50 border border-slate-800 rounded-xl p-4 flex flex-col">
+          <div class="flex items-center justify-between mb-2">
+            <div>
+              <h2 class="text-sm font-semibold tracking-wide text-white flex items-center gap-2">
+                <i data-lucide="activity" class="w-4 h-4 text-cyan-400"></i> Phase-Space Diagnostic: Charge ($Q$) vs. Containment Force ($F$)
+              </h2>
+              <p class="text-xs text-slate-400">
+                $F(Q)$ Hysteresis Loop vs. Irreversible Baseline Creep $F_0$. Upward intercept shift exposes structural danger.
+              </p>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-[10px] font-mono bg-rose-950/60 text-rose-400 border border-rose-800 px-2 py-0.5 rounded">
+                Limit: 26.5 kN (Ti Yield)
+              </span>
+            </div>
+          </div>
+
+          <!-- Chart Area -->
+          <div class="relative flex-1 w-full min-h-[280px]">
+            <canvas id="fqChart"></canvas>
+          </div>
+
+          <!-- Phase-Space Metric Readout -->
+          <div class="grid grid-cols-3 gap-3 mt-3 pt-3 border-t border-slate-800 text-xs font-mono">
+            <div class="bg-slate-950/60 p-2 rounded border border-slate-800">
+              <div class="text-slate-400 text-[10px]">ZERO-SOC BASELINE FORCE ($F_0$)</div>
+              <div id="statBaselineForce" class="text-sm font-bold text-cyan-400">12.10 kN</div>
+              <div class="text-[9px] text-slate-400">Nominal fresh: 12.0 kN</div>
+            </div>
+            <div class="bg-slate-950/60 p-2 rounded border border-slate-800">
+              <div class="text-slate-400 text-[10px]">CURRENT EXPANSION FORCE ($F_{\text{live}}$)</div>
+              <div id="statLiveForce" class="text-sm font-bold text-white">15.42 kN</div>
+              <div id="statForceRate" class="text-[9px] text-cyan-400">+0.34 kN/Ah dynamic</div>
+            </div>
+            <div class="bg-slate-950/60 p-2 rounded border border-slate-800">
+              <div class="text-slate-400 text-[10px]">SEI / PLATED DEAD Li MASS</div>
+              <div id="statDeadLiMass" class="text-sm font-bold text-amber-400">1.48 g</div>
+              <div class="text-[9px] text-slate-400">Irreversible creep trigger</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Middle Row: Closed-Loop Controls & Secondary Telemetry Plots -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- Closed-Loop Interactive Control Station -->
+        <div class="lg:col-span-5 bg-slate-900/50 border border-slate-800 rounded-xl p-5 space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+            <h3 class="text-sm font-bold uppercase tracking-wider text-white flex items-center gap-2">
+              <i data-lucide="sliders" class="w-4 h-4 text-cyan-400"></i> Closed-Loop Mission Control & Fault Injector
+            </h3>
+            <span class="text-[10px] font-mono text-cyan-400 bg-cyan-950 px-2 py-0.5 rounded border border-cyan-800">
+              Observer: LOCKED
+            </span>
+          </div>
+
+          <!-- Slider 1: Electric Charge (State of Charge Q) -->
+          <div class="space-y-1">
+            <div class="flex justify-between text-xs font-mono">
+              <span class="text-slate-300">Live Rover Charge ($Q$):</span>
+              <span id="sliderQVal" class="text-cyan-400 font-bold">45.0 Ah (50% SOC)</span>
+            </div>
+            <input id="sliderQ" type="range" min="0" max="90" step="0.5" value="45"
+              class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400"
+              oninput="handleControlUpdate()">
+            <div class="flex justify-between text-[10px] font-mono text-slate-400">
+              <span>0 Ah (Empty)</span>
+              <span>Nominal Capacity: 90 Ah</span>
+            </div>
+          </div>
+
+          <!-- Slider 2: Lunar Surface Thermal Environment (Ambient Temp) -->
+          <div class="space-y-1">
+            <div class="flex justify-between text-xs font-mono">
+              <span class="text-slate-300">Lunar Cell Temperature ($T_{\text{pack}}$):</span>
+              <span id="sliderTempVal" class="text-indigo-400 font-bold">-20.0 °C</span>
+            </div>
+            <input id="sliderTemp" type="range" min="-40" max="60" step="1" value="-20"
+              class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-400"
+              oninput="handleControlUpdate()">
+            <div class="flex justify-between text-[10px] font-mono text-slate-400">
+              <span>-40°C (Polar Crater Shade)</span>
+              <span>+60°C (Lunar Noon)</span>
+            </div>
+          </div>
+
+          <!-- Slider 3: Mission Lifetime Lunar Cycles -->
+          <div class="space-y-1">
+            <div class="flex justify-between text-xs font-mono">
+              <span class="text-slate-300">Lunar Traverse Cycles ($N$):</span>
+              <span id="sliderCyclesVal" class="text-amber-400 font-bold">120 Cycles</span>
+            </div>
+            <input id="sliderCycles" type="range" min="0" max="1500" step="10" value="120"
+              class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-400"
+              oninput="handleControlUpdate()">
+            <div class="flex justify-between text-[10px] font-mono text-slate-400">
+              <span>0 (Pre-Flight)</span>
+              <span>1500 Cycles (5-Year Endurance)</span>
+            </div>
+          </div>
+
+          <!-- Fault Injection Buttons & Mode Switches -->
+          <div class="pt-2 border-t border-slate-800 space-y-2">
+            <div class="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+              <i data-lucide="zap" class="w-3.5 h-3.5 text-amber-400"></i> Fault Injection & Automated Remediation:
+            </div>
+            <div class="grid grid-cols-2 gap-2 text-xs">
+              <button onclick="injectRapidDegradation()" class="px-3 py-2 bg-rose-950/50 hover:bg-rose-900/60 border border-rose-800 text-rose-300 rounded font-medium transition flex items-center justify-center gap-1.5">
+                <i data-lucide="flame" class="w-3.5 h-3.5"></i> Inject Dead Li Plating
+              </button>
+              <button onclick="resetPackState()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded font-medium transition flex items-center justify-center gap-1.5">
+                <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Reset Fresh Baseline
+              </button>
+            </div>
+            <div class="flex items-center justify-between p-2 rounded bg-slate-950 border border-slate-800 mt-2">
+              <span class="text-xs text-slate-300 font-mono">Autonomous Adaptive Derating:</span>
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input id="toggleAdaptiveDerating" type="checkbox" checked class="sr-only peer" onchange="handleControlUpdate()">
+                <div class="w-9 h-5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-cyan-600"></div>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Secondary Telemetry Plots: Time Series -->
+        <div class="lg:col-span-7 grid grid-cols-1 md:grid-cols-2 gap-4">
+          
+          <!-- Secondary Plot 1: Force History vs Structural Limit -->
+          <div class="bg-slate-900/50 border border-slate-800 rounded-xl p-4 flex flex-col">
+            <div class="flex items-center justify-between mb-1">
+              <h4 class="text-xs font-semibold text-white flex items-center gap-1.5">
+                <i data-lucide="git-commit" class="w-3.5 h-3.5 text-cyan-400"></i> Restraint Force ($F$) History
+              </h4>
+              <span class="text-[10px] font-mono text-slate-400">Time Window: 100s</span>
+            </div>
+            <div class="relative flex-1 w-full min-h-[160px]">
+              <canvas id="forceHistoryChart"></canvas>
+            </div>
+            <div class="flex justify-between items-center text-[10px] font-mono text-slate-400 mt-1">
+              <span>Ti Endplate Yield: 26.5 kN</span>
+              <span id="boltStrainReadout" class="text-cyan-400">Strain: 0.18%</span>
+            </div>
+          </div>
+
+          <!-- Secondary Plot 2: Dynamic Derating & Usable Capacity Envelope -->
+          <div class="bg-slate-900/50 border border-slate-800 rounded-xl p-4 flex flex-col">
+            <div class="flex items-center justify-between mb-1">
+              <h4 class="text-xs font-semibold text-white flex items-center gap-1.5">
+                <i data-lucide="battery-charging" class="w-3.5 h-3.5 text-amber-400"></i> Charge Cut-off Derate Envelope
+              </h4>
+              <span class="text-[10px] font-mono text-amber-400" id="liveEnvelopePercent">100.0% Allowed</span>
+            </div>
+            <div class="relative flex-1 w-full min-h-[160px]">
+              <canvas id="deratingChart"></canvas>
+            </div>
+            <div class="flex justify-between items-center text-[10px] font-mono text-slate-400 mt-1">
+              <span>Min Rover Reserve: 35 Ah</span>
+              <span id="maxAllowableQReadout" class="text-amber-400">Max Q: 90.0 Ah</span>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- TAB 2: CORE PHYSICS & MATHEMATICAL MODEL                       -->
+    <!-- ============================================================== -->
+    <div id="viewPhysics" class="hidden space-y-6">
+      
+      <!-- Section Intro Banner -->
+      <div class="bg-slate-900/40 border border-slate-800 rounded-xl p-5">
+        <div class="flex items-center gap-3 mb-2">
+          <div class="p-2 rounded bg-cyan-950 border border-cyan-800 text-cyan-400">
+            <i data-lucide="binary" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h2 class="text-lg font-bold text-white">Coupled Electrochemical-Mechanical Swelling Kinetics</h2>
+            <p class="text-xs text-slate-400">
+              Formulation of reversible crystallographic lithium intercalation vs. irreversible solid-electrolyte interphase (SEI) growth and dead lithium creep.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4 Deep Physics Cards Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        <!-- Card 1: Fundamental Governing Equations -->
+        <div class="bg-slate-900/50 border border-slate-800 rounded-xl p-5 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                <i data-lucide="function-square" class="w-4 h-4 text-cyan-400"></i> 1. Mechanical Stress & Elastic Boundary Coupling
+              </h3>
+              <span class="text-[10px] font-mono text-cyan-400 bg-cyan-950 px-2 py-0.5 rounded border border-cyan-800">Hooke-Lattice Continuum</span>
+            </div>
+            <p class="text-xs text-slate-400 leading-relaxed mb-3">
+              Prismatic battery cell swelling inside a rigid structural containment casing generates an internal normal stress $\sigma_{\text{stack}}(t)$ that translates directly into tensile bolt force $F(t)$. Total strain $\varepsilon_{\text{total}}$ is divided into elastic compliance, reversible intercalation strain $\varepsilon_{\text{inter}}$, and irreversible plastic creep $\varepsilon_{\text{creep}}$:
+            </p>
+            <div class="formula-box">
+              $$\sigma_{\text{stack}}(t) = E_{\text{eff}} \left[ \varepsilon_{\text{total}} - \left( \varepsilon_{\text{inter}}(Q, T) + \varepsilon_{\text{SEI}}(t) + \varepsilon_{\text{dead-Li}}(N) \right) \right]$$
+            </div>
+            <p class="text-xs text-slate-400 leading-relaxed mt-2">
+              The total normal force $F$ exerted on the titanium-aluminum tie-rod restraint frame with cross-sectional contact area $A_{\text{cell}}$ and structural compliance $K_{\text{frame}}$ follows:
+            </p>
+            <div class="formula-box">
+              $$F(Q, N) = F_0 + K_{\text{pack}} \cdot \left( \sum_{i=1}^{M} \Delta L_{\text{rev}, i}(Q) + \Delta L_{\text{irrev}, i}(N) \right)$$
+            </div>
+          </div>
+          <div class="mt-4 pt-3 border-t border-slate-800/80 text-[11px] font-mono text-slate-400 flex justify-between">
+            <span>$E_{\text{eff}} = 1.42\text{ GPa}$ (Porous Electrode)</span>
+            <span>$K_{\text{pack}} = 28.4\text{ kN/mm}$</span>
+          </div>
+        </div>
+
+        <!-- Card 2: Microscopic Material & Lattice Phase Transitions -->
+        <div class="bg-slate-900/50 border border-slate-800 rounded-xl p-5 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                <i data-lucide="layers" class="w-4 h-4 text-indigo-400"></i> 2. Microscopic Intercalation & Dead Li Deposition
+              </h3>
+              <span class="text-[10px] font-mono text-indigo-400 bg-indigo-950 px-2 py-0.5 rounded border border-indigo-800">Crystallographic Phase Drift</span>
+            </div>
+            <p class="text-xs text-slate-400 leading-relaxed mb-3">
+              Lithium insertion into graphite active material forces a stage transition from dilute Stage $4$ ($\text{LiC}_{72}$) through Stage $1$ ($\text{LiC}_6$), expanding the graphite $c$-axis unit cell by $\approx 13.2\%$. Under lunar sub-zero charging ($-20^\circ\text{C}$ to $-40^\circ\text{C}$), the charge-transfer resistance $R_{\text{ct}}$ spikes exponentially per the Butler-Volmer relation:
+            </p>
+            <div class="formula-box">
+              $$j_{\text{plating}} = j_0 \left[ \exp\left( \frac{\alpha_a F \eta_{\text{over}}}{RT} \right) - \exp\left( -\frac{\alpha_c F \eta_{\text{over}}}{RT} \right) \right], \quad \eta_{\text{over}} = \Phi_s - \Phi_l - U_{\text{Li/Li}^+}$$
+            </div>
+            <p class="text-xs text-slate-400 leading-relaxed mt-2">
+              When the local overpotential $\eta_{\text{over}} < 0$, metallic lithium plates onto the graphite surface rather than intercalating. Subsequent reaction with alkyl carbonates produces non-passivating mossy dendrites, creating an unyielding permanent volumetric swelling thickness $\delta_{\text{dead-Li}}$:
+            </p>
+            <div class="formula-box">
+              $$\delta_{\text{dead-Li}}(t) = \int_{0}^{t} \frac{\bar{V}_{\text{Li}}}{z F_F \cdot A_{\text{cell}}} \cdot I_{\text{plating}}(\tau) \, d\tau + k_{\text{SEI}} \sqrt{t} \cdot e^{-\frac{E_a}{R T}}$$
+            </div>
+          </div>
+          <div class="mt-4 pt-3 border-t border-slate-800/80 text-[11px] font-mono text-slate-400 flex justify-between">
+            <span>$\bar{V}_{\text{Li}} = 13.02\text{ cm}^3/\text{mol}$</span>
+            <span>$E_a = 48.2\text{ kJ/mol}$ (Solvent Red.)</span>
+          </div>
+        </div>
+
+        <!-- Card 3: Diagnostic State Observer & Inversion Algorithm -->
+        <div class="bg-slate-900/50 border border-slate-800 rounded-xl p-5 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                <i data-lucide="calculator" class="w-4 h-4 text-amber-400"></i> 3. Baseline Inversion & Force-Charge Estimator
+              </h3>
+              <span class="text-[10px] font-mono text-amber-400 bg-amber-950 px-2 py-0.5 rounded border border-amber-800">Kalman-Augmented Observer</span>
+            </div>
+            <p class="text-xs text-slate-400 leading-relaxed mb-3">
+              Standard Battery Management Systems (BMS) cannot separate capacity loss caused by active material cracking from dead lithium deposition. The creep tracker isolates the irreversible baseline offset $F_0(N)$ by executing a recursive least-squares (RLS) inversion across the full charge cycle $(Q_k, F_k)$:
+            </p>
+            <div class="formula-box">
+              $$\hat{F}(Q_k) = \hat{F}_0 + \kappa_1 Q_k + \kappa_2 Q_k^2 + \Delta F_{\text{hyst}}(Q_k, \text{sign}(\dot{Q}_k))$$
+            </div>
+            <p class="text-xs text-slate-400 leading-relaxed mt-2">
+              When the state observer extracts $\hat{F}_0 > F_{\text{baseline, nominal}}$, the autonomous closed-loop firmware derates the maximum charge voltage cut-off ($V_{\text{max}}$) and charge capacity limit ($Q_{\text{ceiling}}$) to prevent containment housing plastic deformation:
+            </p>
+            <div class="formula-box">
+              $$Q_{\text{ceiling}}(t) = Q_{\text{nominal}} \cdot \max \left( 0.40, \; 1.0 - \beta \left[ \frac{\hat{F}_0(t) - F_{\text{nominal}}}{F_{\text{yield}} - F_{\text{nominal}}} \right]^2 \right)$$
+            </div>
+          </div>
+          <div class="mt-4 pt-3 border-t border-slate-800/80 text-[11px] font-mono text-slate-400 flex justify-between">
+            <span>Filter Order: 4-State EKF</span>
+            <span>Estimation Error: $\pm 0.12\text{ kN}$</span>
+          </div>
+        </div>
+
+        <!-- Card 4: Sensor Hardware & Micro-Fabrication Specs -->
+        <div class="bg-slate-900/50 border border-slate-800 rounded-xl p-5 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                <i data-lucide="microchip" class="w-4 h-4 text-emerald-400"></i> 4. Thin-Film Load Sensor & Flight Substrate
+              </h3>
+              <span class="text-[10px] font-mono text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800">Flight-Hardened Microelectronics</span>
+            </div>
+            <p class="text-xs text-slate-400 leading-relaxed mb-3">
+              The hardware sensing layer comprises sub-150-micron polyimide thin-film piezoresistive arrays interleaved between every 4th prismatic cell face, surviving deep lunar thermal swings ($-180^\circ\text{C}$ to $+120^\circ\text{C}$) and space radiation environments:
+            </p>
+            <div class="formula-box">
+              $$\frac{\Delta R_{\text{sensor}}}{R_0} = G_L \cdot \varepsilon_{\text{normal}} + \alpha_T \Delta T + S_{\text{rad}} \cdot \Phi_{\text{GCR}}$$
+            </div>
+            <p class="text-xs text-slate-400 leading-relaxed mt-2">
+              Dual Wheatstone bridge geometry with built-in reference resistive traces eliminates radiation and temperature thermal drift artifacts, providing true micro-strain resolution across a 0 to 50 kN force span.
+            </p>
+            <div class="formula-box">
+              $$V_{\text{out}}(F) = V_{\text{excitation}} \cdot \left( \frac{R_1(F) R_3 - R_2 R_4}{(R_1(F) + R_2)(R_3 + R_4)} \right) \xrightarrow{\text{ADC}} \pm 12.5\text{ N Resolution}$$
+            </div>
+          </div>
+          <div class="mt-4 pt-3 border-t border-slate-800/80 text-[11px] font-mono text-slate-400 flex justify-between">
+            <span>Substrate: DuPont Kapton 50 HN</span>
+            <span>Rad-Tolerance: >100 krad (Si) TID</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- TAB 3: $225,000 NASA SBIR/STTR PROPOSAL & HARDWARE TRANSITION -->
+    <!-- ============================================================== -->
+    <div id="viewProposal" class="hidden space-y-6">
+      
+      <!-- Solicitation Alignment Card -->
+      <div class="bg-slate-900/50 border border-slate-800 rounded-xl p-6">
+        <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-mono font-bold text-cyan-400 bg-cyan-950 px-2.5 py-1 rounded border border-cyan-800">
+                NASA TOPIC: S13.04-8921
+              </span>
+              <span class="text-xs text-slate-400 font-mono">Phase I SBIR/STTR Solicitation</span>
+            </div>
+            <h2 class="text-xl font-bold text-white mt-1">
+              Artemis Crew Rover Structural Battery Containment & In-Situ Swelling Observer
+            </h2>
+          </div>
+          <div class="text-right font-mono">
+            <div class="text-xs text-slate-400">Total Phase I Budget:</div>
+            <div class="text-2xl font-bold text-cyan-400">$225,000</div>
+            <div class="text-[11px] text-slate-400">Period of Performance: 6 Months</div>
+          </div>
+        </div>
+
+        <!-- 30% STTR University Subcontract Callout -->
+        <div class="mt-4 p-4 rounded-lg bg-indigo-950/40 border border-indigo-800/60 flex items-start justify-between gap-4">
+          <div class="flex items-start gap-3">
+            <div class="p-2 rounded bg-indigo-900 text-indigo-300 mt-0.5">
+              <i data-lucide="graduation-cap" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <h3 class="text-sm font-bold text-white">
+                Research Institution Partner (STTR Focus): University of Central Florida (UCF)
+              </h3>
+              <p class="text-xs text-slate-300 mt-1">
+                Collaborating with the <strong>UCF Center for Advanced Turbomachinery and Energy Research (CATER)</strong> and the Materials Characterization Facility. Subcontract scope includes high-precision vacuum thermal-mechanical dilatometry and in-operando electrochemical acoustic testing.
+              </p>
+            </div>
+          </div>
+          <div class="text-right font-mono whitespace-nowrap">
+            <span class="text-xs text-indigo-300 block">Subcontract Allocation:</span>
+            <span class="text-lg font-bold text-white">30.0% ($67,500)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 6-Month Work Breakdown Milestones -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        
+        <div class="bg-slate-900/50 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between text-xs font-mono text-cyan-400 mb-2">
+              <span class="font-bold">MILESTONE 1</span>
+              <span>Months 1–2</span>
+            </div>
+            <h4 class="text-sm font-semibold text-white mb-1">Coupled Kinetic Modeling</h4>
+            <p class="text-xs text-slate-400 leading-relaxed">
+              Formulate 1D electrochemical-mechanical swelling model calibrated for 90 Ah LFP/NMC lunar chemistry under $-40^\circ\text{C}$ to $+60^\circ\text{C}$ cyclic loading.
+            </p>
+          </div>
+          <div class="mt-4 pt-2 border-t border-slate-800 text-[11px] font-mono text-slate-400">
+            Deliverable: Model Validation Report against UCF dilatometer data.
+          </div>
+        </div>
+
+        <div class="bg-slate-900/50 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between text-xs font-mono text-cyan-400 mb-2">
+              <span class="font-bold">MILESTONE 2</span>
+              <span>Months 3–4</span>
+            </div>
+            <h4 class="text-sm font-semibold text-white mb-1">State Observer Inversion</h4>
+            <p class="text-xs text-slate-400 leading-relaxed">
+              Implement recursive least-squares (RLS) and Extended Kalman Filter software capable of deconvolving $F_0$ baseline creep from reversible $F(Q)$ hysteresis loops in real-time.
+            </p>
+          </div>
+          <div class="mt-4 pt-2 border-t border-slate-800 text-[11px] font-mono text-slate-400">
+            Deliverable: C/C++ embedded observer firmware (<4 kB footprint).
+          </div>
+        </div>
+
+        <div class="bg-slate-900/50 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between text-xs font-mono text-cyan-400 mb-2">
+              <span class="font-bold">MILESTONE 3</span>
+              <span>Month 5</span>
+            </div>
+            <h4 class="text-sm font-semibold text-white mb-1">Closed-Loop Autonomous Derating</h4>
+            <p class="text-xs text-slate-400 leading-relaxed">
+              Demonstrate hardware-in-the-loop (HIL) automated cut-off voltage throttling preventing tie-rod yield during forced accelerated cold-temperature lithium plating tests.
+            </p>
+          </div>
+          <div class="mt-4 pt-2 border-t border-slate-800 text-[11px] font-mono text-slate-400">
+            Deliverable: HIL Bench Test Data at UCF Cryo-Chamber.
+          </div>
+        </div>
+
+        <div class="bg-slate-900/50 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between text-xs font-mono text-cyan-400 mb-2">
+              <span class="font-bold">MILESTONE 4</span>
+              <span>Month 6</span>
+            </div>
+            <h4 class="text-sm font-semibold text-white mb-1">Phase II Flight Spec Architecture</h4>
+            <p class="text-xs text-slate-400 leading-relaxed">
+              Complete flight-weight titanium endplate design with integrated polyimide sensor arrays and Rad-Hardened micro-controller layout ready for Lunar Terrain Vehicle (LTV) insertion.
+            </p>
+          </div>
+          <div class="mt-4 pt-2 border-t border-slate-800 text-[11px] font-mono text-slate-400">
+            Deliverable: Phase II Work Plan & CDR Packaging Blueprint.
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Phase II Transition & Facility Testing Roadmap -->
+      <div class="bg-slate-900/40 border border-slate-800 rounded-xl p-5">
+        <h3 class="text-sm font-bold text-white uppercase tracking-wider mb-2 flex items-center gap-2">
+          <i data-lucide="rocket" class="w-4 h-4 text-cyan-400"></i> Phase II Prototyping & Facility Transition Plan ($850k–$1.2M)
+        </h3>
+        <p class="text-xs text-slate-300 leading-relaxed mb-4">
+          Following Phase I validation, Phase II will fabricate a full-scale 48V, 15 kWh flight-like battery containment sub-pack tested inside <strong>UCF CATER thermal-vacuum environmental chambers</strong> replicating 14-day lunar night cryogenic cycles ($-180^\circ\text{C}$). Transition targets direct software integration into prime contractor avionics for NASA's <strong>Lunar Terrain Vehicle (LTV)</strong> and <strong>Pressurized Rover (JAXA/NASA)</strong> missions.
+        </p>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs font-mono">
+          <div class="p-3 rounded bg-slate-950 border border-slate-800">
+            <span class="text-slate-400 block text-[10px]">FACILITY VERIFICATION</span>
+            <span class="text-cyan-400 font-bold">UCF CATER TVAC Chamber</span>
+            <span class="text-slate-400 block text-[10px] mt-1">10^-6 Torr vacuum, 90K liquid $N_2$</span>
+          </div>
+          <div class="p-3 rounded bg-slate-950 border border-slate-800">
+            <span class="text-slate-400 block text-[10px]">TARGET ROVER ARCHITECTURE</span>
+            <span class="text-white font-bold">Artemis LTV & Habitable Rover</span>
+            <span class="text-slate-400 block text-[10px] mt-1">800V bus, high-vibration structural spec</span>
+          </div>
+          <div class="p-3 rounded bg-slate-950 border border-slate-800">
+            <span class="text-slate-400 block text-[10px]">SAFETY GAIN</span>
+            <span class="text-emerald-400 font-bold">100% Containment Breach Prevention</span>
+            <span class="text-slate-400 block text-[10px] mt-1">Zero catastrophic casing rupture risk</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ============================================================== -->
+    <!-- TAB 4: COMMERCIAL & NATIONWIDE ARR BREAKDOWN                   -->
+    <!-- ============================================================== -->
+    <div id="viewARR" class="hidden space-y-6">
+      
+      <!-- Executive Summary Card -->
+      <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-6 glow-cyan">
+        <div class="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="text-xs font-mono font-bold text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800">
+                TOTAL ADDRESSABLE CIVIL MARKET
+              </span>
+              <span class="text-xs text-slate-400 font-mono">SaaS & Embedded Runtime Licensing</span>
+            </div>
+            <h2 class="text-2xl font-bold text-white">
+              $214.2M Mature Nationwide ARR
+            </h2>
+            <p class="text-xs text-slate-300 mt-1 max-w-2xl">
+              <strong>Executive Summary:</strong> By replacing blind empirical cycle-counting with physical force-charge $(Q, F)$ state-observer software, fleet operators eliminate catastrophic lithium-ion casing deformation, extend warranty life by 38%, and avoid structural containment fires across heavy electric assets.
+            </p>
+          </div>
+          <div class="p-4 rounded-xl bg-slate-950 border border-slate-800 text-right font-mono">
+            <div class="text-[10px] uppercase text-slate-400">Enterprise Valuation Range:</div>
+            <div class="text-xl font-bold text-cyan-400">$1.71B – $2.57B</div>
+            <div class="text-[10px] text-slate-400">At 8x – 12x Deep-Tech Software Multiple</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Commercial Market Vertical Breakdown Table -->
+      <div class="bg-slate-900/50 border border-slate-800 rounded-xl overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-800 flex justify-between items-center">
+          <h3 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+            <i data-lucide="table" class="w-4 h-4 text-cyan-400"></i> Civil Industry Deployment & ARR Distribution
+          </h3>
+          <span class="text-xs font-mono text-slate-400">6 Commercial Sectors</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs font-mono">
+            <thead class="bg-slate-950/80 text-slate-400 border-b border-slate-800">
+              <tr>
+                <th class="p-3 pl-5">Target Commercial Vertical</th>
+                <th class="p-3">Specific Application</th>
+                <th class="p-3">SaaS / Runtime Pricing Metric</th>
+                <th class="p-3">Addressable Asset Base</th>
+                <th class="p-3 pr-5 text-right">Mature ARR ($M)</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800/60 text-slate-300">
+              <tr class="hover:bg-slate-800/30">
+                <td class="p-3 pl-5 font-semibold text-white flex items-center gap-2">
+                  <i data-lucide="zap" class="w-3.5 h-3.5 text-cyan-400"></i> Grid Utility BESS
+                </td>
+                <td class="p-3">Containerized 4-Hr Storage Packs</td>
+                <td class="p-3">$320 / MWh / year</td>
+                <td class="p-3">180,000 MWh deployed capacity</td>
+                <td class="p-3 pr-5 text-right font-bold text-cyan-400">$57.6M</td>
+              </tr>
+              <tr class="hover:bg-slate-800/30">
+                <td class="p-3 pl-5 font-semibold text-white flex items-center gap-2">
+                  <i data-lucide="truck" class="w-3.5 h-3.5 text-indigo-400"></i> Class 8 Electric Haulers
+                </td>
+                <td class="p-3">Heavy Freight & Drivetrain Packs</td>
+                <td class="p-3">$450 / truck / year</td>
+                <td class="p-3">110,000 regional haulers</td>
+                <td class="p-3 pr-5 text-right font-bold text-cyan-400">$49.5M</td>
+              </tr>
+              <tr class="hover:bg-slate-800/30">
+                <td class="p-3 pl-5 font-semibold text-white flex items-center gap-2">
+                  <i data-lucide="plane" class="w-3.5 h-3.5 text-amber-400"></i> eVTOL & Electric Aviation
+                </td>
+                <td class="p-3">Urban Air Mobility Lightweight Packs</td>
+                <td class="p-3">$2,800 / aircraft / year</td>
+                <td class="p-3">12,500 commercial aircraft</td>
+                <td class="p-3 pr-5 text-right font-bold text-cyan-400">$35.0M</td>
+              </tr>
+              <tr class="hover:bg-slate-800/30">
+                <td class="p-3 pl-5 font-semibold text-white flex items-center gap-2">
+                  <i data-lucide="pickaxe" class="w-3.5 h-3.5 text-emerald-400"></i> Autonomous Mining Fleets
+                </td>
+                <td class="p-3">Ultra-Heavy Open-Pit Haul Trucks</td>
+                <td class="p-3">$6,200 / vehicle / year</td>
+                <td class="p-3">4,800 global mining haulers</td>
+                <td class="p-3 pr-5 text-right font-bold text-cyan-400">$29.7M</td>
+              </tr>
+              <tr class="hover:bg-slate-800/30">
+                <td class="p-3 pl-5 font-semibold text-white flex items-center gap-2">
+                  <i data-lucide="orbit" class="w-3.5 h-3.5 text-purple-400"></i> Commercial Space & LEO Sats
+                </td>
+                <td class="p-3">Satellite & Private Orbital Stations</td>
+                <td class="p-3">$8,500 / satellite constellation bus</td>
+                <td class="p-3">2,800 active high-throughput birds</td>
+                <td class="p-3 pr-5 text-right font-bold text-cyan-400">$23.8M</td>
+              </tr>
+              <tr class="hover:bg-slate-800/30">
+                <td class="p-3 pl-5 font-semibold text-white flex items-center gap-2">
+                  <i data-lucide="train" class="w-3.5 h-3.5 text-rose-400"></i> Rail Locomotive Decarbonization
+                </td>
+                <td class="p-3">Hybrid Freight Heavy Tender Cars</td>
+                <td class="p-3">$5,400 / locomotive / year</td>
+                <td class="p-3">3,450 switcher & freight units</td>
+                <td class="p-3 pr-5 text-right font-bold text-cyan-400">$18.6M</td>
+              </tr>
+              <tr class="bg-slate-950 font-bold text-white">
+                <td class="p-3 pl-5" colspan="4">Total Nationwide & Commercial Civil ARR</td>
+                <td class="p-3 pr-5 text-right text-emerald-400 text-sm">$214.2M</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Detailed Industry Deep-Dive Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        
+        <!-- Deep Dive 1: Grid BESS -->
+        <div class="bg-slate-900/50 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
+          <div>
+            <h4 class="text-sm font-bold text-white flex items-center gap-2 mb-2">
+              <i data-lucide="zap" class="w-4 h-4 text-cyan-400"></i> 1. Grid Utility Storage (BESS)
+            </h4>
+            <div class="text-xs text-slate-300 mb-2">
+              <strong>Physics in 1 Sentence:</strong> Deep daily discharge cycles drive periodic volumetric phase changes in dense LFP modules that gradually deform container racks over a 15-year lifetime.
+            </div>
+            <div class="text-xs text-slate-400">
+              <strong>Why Others Missed This:</strong> Incumbent BMS systems track purely voltage and cell temperature, failing to detect mechanically constrained pouch and prismatic swelling until structural endplates warp and rupture cooling loops.
+            </div>
+          </div>
+          <div class="mt-3 pt-2 border-t border-slate-800 text-[10px] font-mono text-cyan-400">
+            Target Partners: Fluence, Tesla Megapack, Powin Energy
+          </div>
+        </div>
+
+        <!-- Deep Dive 2: Heavy Class 8 Trucks -->
+        <div class="bg-slate-900/50 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
+          <div>
+            <h4 class="text-sm font-bold text-white flex items-center gap-2 mb-2">
+              <i data-lucide="truck" class="w-4 h-4 text-indigo-400"></i> 2. Class 8 Long-Haul Trucking
+            </h4>
+            <div class="text-xs text-slate-300 mb-2">
+              <strong>Physics in 1 Sentence:</strong> Megawatt-level highway fast charging induces severe localized lithium concentration gradients that trigger rapid dendritic plating and sudden mechanical pressure spikes.
+            </div>
+            <div class="text-xs text-slate-400">
+              <strong>Why Others Missed This:</strong> Fleet managers use arbitrary cycle counters and replace $80,000 battery packs prematurely, unaware that load-cell derating preserves pack geometry for an additional 250,000 miles.
+            </div>
+          </div>
+          <div class="mt-3 pt-2 border-t border-slate-800 text-[10px] font-mono text-indigo-400">
+            Target Partners: Freightliner eCascadia, Volvo Trucks, PACCAR
+          </div>
+        </div>
+
+        <!-- Deep Dive 3: eVTOL Aviation -->
+        <div class="bg-slate-900/50 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
+          <div>
+            <h4 class="text-sm font-bold text-white flex items-center gap-2 mb-2">
+              <i data-lucide="plane" class="w-4 h-4 text-amber-400"></i> 3. eVTOL & Electric Aviation
+            </h4>
+            <div class="text-xs text-slate-300 mb-2">
+              <strong>Physics in 1 Sentence:</strong> High-C takeoff thrust draws extreme current densities that heat and dilate silicon-doped graphite anodes against ultra-lightweight carbon-fiber containment sleeves.
+            </div>
+            <div class="text-xs text-slate-400">
+              <strong>Why Others Missed This:</strong> Aerospace certification requires impossible 10^-9 safety margins; structural load tracking provides deterministic physical evidence of zero casing stress before clearing aircraft for departure.
+            </div>
+          </div>
+          <div class="mt-3 pt-2 border-t border-slate-800 text-[10px] font-mono text-amber-400">
+            Target Partners: Joby Aviation, Archer, Beta Technologies
+          </div>
+        </div>
+
+        <!-- Deep Dive 4: Autonomous Mining Fleets -->
+        <div class="bg-slate-900/50 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
+          <div>
+            <h4 class="text-sm font-bold text-white flex items-center gap-2 mb-2">
+              <i data-lucide="pickaxe" class="w-4 h-4 text-emerald-400"></i> 4. Autonomous Heavy Mining
+            </h4>
+            <div class="text-xs text-slate-300 mb-2">
+              <strong>Physics in 1 Sentence:</strong> Regenerative braking down steep quarry grades forces intense multi-hundred-amp pulses into cold battery cells, creating massive dead-lithium baseline creep.
+            </div>
+            <div class="text-xs text-slate-400">
+              <strong>Why Others Missed This:</strong> Operators rely on passive fire suppression blankets after cells rupture, whereas creep tracking dynamically modulates dynamic brake regen to prevent mechanical casing overstress.
+            </div>
+          </div>
+          <div class="mt-3 pt-2 border-t border-slate-800 text-[10px] font-mono text-emerald-400">
+            Target Partners: Caterpillar Mining, Komatsu, Fortescue (FFI)
+          </div>
+        </div>
+
+        <!-- Deep Dive 5: Commercial Space & LEO Constellations -->
+        <div class="bg-slate-900/50 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
+          <div>
+            <h4 class="text-sm font-bold text-white flex items-center gap-2 mb-2">
+              <i data-lucide="orbit" class="w-4 h-4 text-purple-400"></i> 5. Commercial LEO Constellations
+            </h4>
+            <div class="text-xs text-slate-300 mb-2">
+              <strong>Physics in 1 Sentence:</strong> Orbiting through 16 orbital eclipse cycles daily produces continuous micro-dilation that degrades hermetic satellite battery welds inside hard vacuum.
+            </div>
+            <div class="text-xs text-slate-400">
+              <strong>Why Others Missed This:</strong> Satellite telemetry is limited to downlink bandwidth; our 4 kB onboard state observer compresses swelling dynamics into a single health index, avoiding expensive orbital battery death.
+            </div>
+          </div>
+          <div class="mt-3 pt-2 border-t border-slate-800 text-[10px] font-mono text-purple-400">
+            Target Partners: SpaceX Starlink, Planet Labs, Maxar
+          </div>
+        </div>
+
+        <!-- Deep Dive 6: Rail Locomotive Decarbonization -->
+        <div class="bg-slate-900/50 border border-slate-800 rounded-xl p-4 flex flex-col justify-between">
+          <div>
+            <h4 class="text-sm font-bold text-white flex items-center gap-2 mb-2">
+              <i data-lucide="train" class="w-4 h-4 text-rose-400"></i> 6. Heavy Freight Rail Tenders
+            </h4>
+            <div class="text-xs text-slate-300 mb-2">
+              <strong>Physics in 1 Sentence:</strong> Multi-megawatt freight shunting combines extreme shock loads with sustained high-C charging, accelerating mechanical fatigue along cell restraint tie-bolts.
+            </div>
+            <div class="text-xs text-slate-400">
+              <strong>Why Others Missed This:</strong> Rail operators treat batteries like diesel engines, scheduling arbitrary 3-year overhauls instead of condition-based autonomous derating that prevents derailment fire risks.
+            </div>
+          </div>
+          <div class="mt-3 pt-2 border-t border-slate-800 text-[10px] font-mono text-rose-400">
+            Target Partners: Wabtec, Progress Rail, BNSF Railway
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Direct Collaboration Call-to-Action Banner -->
+      <div class="bg-gradient-to-r from-cyan-950/60 via-slate-900 to-indigo-950/60 border border-cyan-800/60 rounded-xl p-6 text-center">
+        <h3 class="text-lg font-bold text-white mb-1">
+          Partner on Spaceflight & Civil Mechanical Battery Observer Deployments
+        </h3>
+        <p class="text-xs text-slate-300 max-w-xl mx-auto mb-4">
+          Now seeking Phase II flight integration partners, battery cell manufacturers, and heavy electric fleet operators for embedded software pilots.
+        </p>
+        <div class="flex items-center justify-center gap-4">
+          <a href="mailto:support@rfwavecode.com" class="px-5 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold rounded-lg text-xs font-mono transition flex items-center gap-2 glow-cyan">
+            <i data-lucide="mail" class="w-4 h-4"></i> Contact Engineering: support@rfwavecode.com
+          </a>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- JAVASCRIPT: SIMULATION ENGINE, CHARTS, AND OBSERVER -->
+  <script>
+    // Tab Switching Mapping
+    const tabMapping = {
+      'sim': { viewId: 'viewSim', btnId: 'tabBtnSim' },
+      'physics': { viewId: 'viewPhysics', btnId: 'tabBtnPhysics' },
+      'proposal': { viewId: 'viewProposal', btnId: 'tabBtnProposal' },
+      'arr': { viewId: 'viewARR', btnId: 'tabBtnARR' }
+    };
+
+    function switchTab(tabKey) {
+      Object.keys(tabMapping).forEach(key => {
+        const item = tabMapping[key];
+        const viewEl = document.getElementById(item.viewId);
+        const btnEl = document.getElementById(item.btnId);
+        
+        if (key === tabKey) {
+          viewEl.classList.remove('hidden');
+          btnEl.className = "px-4 py-2 text-sm font-medium border-b-2 border-cyan-500 text-cyan-400 flex items-center gap-2 transition-colors";
+        } else {
+          viewEl.classList.add('hidden');
+          btnEl.className = "px-4 py-2 text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2 transition-colors";
+        }
+      });
+
+      if (tabKey === 'sim') {
+        resizeCanvas();
+        if (fqChart) fqChart.resize();
+        if (forceHistoryChart) forceHistoryChart.resize();
+        if (deratingChart) deratingChart.resize();
+      }
+
+      // Re-trigger MathJax rendering dynamically to guarantee no raw LaTeX appears
+      if (window.MathJax && window.MathJax.typesetPromise) {
+        window.MathJax.typesetPromise();
+      }
+    }
+
+    // ==============================================================
+    // PHYSICS SIMULATION ENGINE & STATE OBSERVER VARIABLES
+    // ==============================================================
+    const NOMINAL_CAPACITY = 90.0; // Ah
+    const NOMINAL_FRESH_F0 = 12.0; // kN (restraint pre-tension at 0 Ah)
+    const TI_YIELD_FORCE = 26.5; // kN (Structural plastic deformation threshold)
+    const MAX_CONTAINMENT_SAFETY_FORCE = 22.0; // kN (Derating starts)
+
+    // Dynamic Live Simulation States
+    let simState = {
+      Q: 45.0, // Live Charge in Ah
+      temperature: -20.0, // Celsius
+      cycles: 120, // Lunar traverse cycles
+      deadLiMass: 1.48, // g of non-recoverable plated lithium
+      baselineForce_F0: 12.10, // kN at zero charge
+      currentForce: 15.42, // Live kN
+      deratingEnvelope: 100.0, // % of max capacity allowed
+      isInterventionActive: false,
+      adaptiveDeratingEnabled: true,
+      hysteresisSign: 1, // +1 for charging, -1 for discharging
+      hysteresisPhase: 0.0,
+      timeSeconds: 0
+    };
+
+    // Telemetry History Buffers
+    const MAX_HISTORY = 40;
+    const historyData = {
+      labels: [],
+      force: [],
+      limit: [],
+      derating: [],
+      usableQ: []
+    };
+
+    // Chart.js Instances
+    let fqChart = null;
+    let forceHistoryChart = null;
+    let deratingChart = null;
+
+    // ==============================================================
+    // CANVAS PHYSICAL PACK RENDERING
+    // ==============================================================
+    const canvas = document.getElementById('packCanvas');
+    const ctx = canvas.getContext('2d');
+
+    function resizeCanvas() {
+      if (!canvas) return;
+      const rect = canvas.parentElement.getBoundingClientRect();
+      const w = rect.width || 460;
+      const h = rect.height || 260;
+      
+      canvas.width = w * window.devicePixelRatio;
+      canvas.height = h * window.devicePixelRatio;
+      canvas.style.width = `${w}px`;
+      canvas.style.height = `${h}px`;
+      ctx.resetTransform();
+      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    }
+
+    window.addEventListener('resize', () => {
+      resizeCanvas();
+    });
+
+    function drawPhysicalPack() {
+      const rect = canvas.getBoundingClientRect();
+      const width = rect.width;
+      const height = rect.height;
+
+      ctx.clearRect(0, 0, width, height);
+
+      // Background Grid / Lunar Lander Bay look
+      ctx.strokeStyle = '#091024';
+      ctx.lineWidth = 1;
+      for (let x = 0; x < width; x += 25) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, height);
+        ctx.stroke();
+      }
+      for (let y = 0; y < height; y += 25) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+      }
+
+      // Pack Geometry Parameters
+      const numCells = 8;
+      const packMarginX = 65;
+      const packY = 45;
+      const packHeight = height - 90;
+      const availWidth = width - (packMarginX * 2);
+
+      // Expansion Displacement (magnified for clear visual intuition)
+      const expansionPx = ((simState.currentForce - NOMINAL_FRESH_F0) / (TI_YIELD_FORCE - NOMINAL_FRESH_F0)) * 26;
+      const cellBaseWidth = (availWidth - expansionPx) / numCells;
+
+      // Draw Titanium Restraint Endplates
+      // Left Endplate (Fixed to Rover Chassis)
+      ctx.fillStyle = '#475569';
+      ctx.fillRect(packMarginX - 16, packY - 10, 14, packHeight + 20);
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(packMarginX - 16, packY - 10, 14, packHeight + 20);
+
+      // Ground mounting icon
+      ctx.fillStyle = '#334155';
+      ctx.fillRect(packMarginX - 22, packY + packHeight / 2 - 12, 6, 24);
+
+      // Right Endplate (Movable & Strain Monitored)
+      const rightPlateX = packMarginX + (cellBaseWidth * numCells) + expansionPx;
+      
+      // Color-code right plate based on yield stress margin
+      const forceRatio = (simState.currentForce - NOMINAL_FRESH_F0) / (TI_YIELD_FORCE - NOMINAL_FRESH_F0);
+      let plateColor = '#475569';
+      let plateGlow = '#64748b';
+      if (forceRatio > 0.8) {
+        plateColor = '#881337'; // Rose Alert
+        plateGlow = '#f43f5e';
+      } else if (forceRatio > 0.5) {
+        plateColor = '#78350f'; // Amber Warning
+        plateGlow = '#f59e0b';
+      }
+
+      ctx.fillStyle = plateColor;
+      ctx.fillRect(rightPlateX + 2, packY - 10, 14, packHeight + 20);
+      ctx.strokeStyle = plateGlow;
+      ctx.strokeRect(rightPlateX + 2, packY - 10, 14, packHeight + 20);
+
+      // Tie-Rods (Top & Bottom High-Strength Titanium Bolts)
+      ctx.strokeStyle = forceRatio > 0.8 ? '#f43f5e' : (forceRatio > 0.5 ? '#f59e0b' : '#38bdf8');
+      ctx.lineWidth = 3;
+      // Top Tie-Rod
+      ctx.beginPath();
+      ctx.moveTo(packMarginX - 16, packY - 5);
+      ctx.lineTo(rightPlateX + 16, packY - 5);
+      ctx.stroke();
+      // Bottom Tie-Rod
+      ctx.beginPath();
+      ctx.moveTo(packMarginX - 16, packY + packHeight + 5);
+      ctx.lineTo(rightPlateX + 16, packY + packHeight + 5);
+      ctx.stroke();
+
+      // Bolt threads / nuts
+      ctx.fillStyle = '#e2e8f0';
+      ctx.fillRect(rightPlateX + 16, packY - 9, 6, 8);
+      ctx.fillRect(rightPlateX + 16, packY + packHeight + 1, 6, 8);
+
+      // Draw Individual Prismatic Cells & Interleaved Load Cells
+      let curX = packMarginX;
+      for (let i = 0; i < numCells; i++) {
+        const cWidth = cellBaseWidth + (expansionPx / numCells);
+
+        // Cell active core gradient
+        const grad = ctx.createLinearGradient(curX, packY, curX + cWidth, packY + packHeight);
+        const socFraction = simState.Q / NOMINAL_CAPACITY;
+        
+        // Dynamic blue-cyan tone based on state of charge
+        grad.addColorStop(0, '#0f172a');
+        grad.addColorStop(0.5, socFraction > 0.6 ? '#083344' : '#1e293b');
+        grad.addColorStop(1, '#0284c7');
+
+        ctx.fillStyle = grad;
+        ctx.fillRect(curX, packY, cWidth - 2, packHeight);
+        ctx.strokeStyle = '#1e3a8a';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(curX, packY, cWidth - 2, packHeight);
+
+        // Terminal Terminals (Cathode/Anode)
+        ctx.fillStyle = i % 2 === 0 ? '#ef4444' : '#94a3b8';
+        ctx.fillRect(curX + cWidth / 2 - 3, packY - 6, 6, 6);
+
+        // Plated Lithium / Dead SEI layer visualization (creeping amber deposition)
+        const seiThickness = Math.min(cWidth * 0.35, (simState.deadLiMass / 10.0) * (cWidth * 0.3));
+        if (seiThickness > 0.5) {
+          ctx.fillStyle = 'rgba(245, 158, 11, 0.7)';
+          ctx.fillRect(curX + 1, packY + 2, seiThickness, packHeight - 4);
+        }
+
+        // Intercalation breathing micro-lines (representing graphite lattice planes)
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.2)';
+        ctx.lineWidth = 1;
+        const numLines = 4;
+        for (let l = 1; l <= numLines; l++) {
+          const lx = curX + (cWidth * (l / (numLines + 1)));
+          ctx.beginPath();
+          ctx.moveTo(lx, packY + 5);
+          ctx.lineTo(lx, packY + packHeight - 5);
+          ctx.stroke();
+        }
+
+        // Thin-film load sensor interleaved at cell 0, 4, and 7
+        if (i === 0 || i === 3 || i === 7) {
+          ctx.fillStyle = '#6366f1'; // Indigo thin-film piezoresistive sensor
+          ctx.fillRect(curX + cWidth - 2, packY + 4, 3, packHeight - 8);
+        }
+
+        curX += cWidth;
+      }
+
+      // Draw Active Swelling Force Vectors (Arrows on Right Endplate)
+      const arrowStartX = rightPlateX + 18;
+      const arrowY = packY + (packHeight / 2);
+      const arrowLen = Math.min(38, Math.max(8, (simState.currentForce / 28) * 38));
+
+      ctx.strokeStyle = forceRatio > 0.8 ? '#f43f5e' : '#38bdf8';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(arrowStartX, arrowY);
+      ctx.lineTo(arrowStartX + arrowLen, arrowY);
+      ctx.lineTo(arrowStartX + arrowLen - 6, arrowY - 5);
+      ctx.moveTo(arrowStartX + arrowLen, arrowY);
+      ctx.lineTo(arrowStartX + arrowLen - 6, arrowY + 5);
+      ctx.stroke();
+
+      // Text readout next to vector
+      ctx.fillStyle = forceRatio > 0.8 ? '#f43f5e' : '#38bdf8';
+      ctx.font = '10px "JetBrains Mono"';
+      ctx.fillText(`${simState.currentForce.toFixed(1)} kN`, arrowStartX + 2, arrowY - 9);
+
+      // Update overlay label
+      const dispMm = ((simState.currentForce - NOMINAL_FRESH_F0) / 28.4).toFixed(2);
+      document.getElementById('canvasOverlayDisplacement').innerHTML = `$\\Delta L_{\\text{stack}}$: +${dispMm} mm`;
+      if (window.MathJax && window.MathJax.typesetPromise) {
+        window.MathJax.typesetPromise([document.getElementById('canvasOverlayDisplacement')]);
+      }
+    }
+
+    // ==============================================================
+    // PHYSICS CALCULATION CORE & STATE OBSERVER
+    // ==============================================================
+    function computePhysics() {
+      // 1. Irreversible degradation accumulation (Dead Li plating & SEI)
+      // Plating rate accelerates drastically at sub-zero temperatures (Butler-Volmer overpotential)
+      const subZeroFactor = simState.temperature < 0 ? Math.exp(-simState.temperature / 14) : 0.8;
+      const cycleGrowth = (simState.cycles * 0.0075) * (1.0 + (subZeroFactor * 0.25));
+      const deadLiContribution = (simState.deadLiMass * 0.42); // kN contribution per gram of dead Li
+
+      // Calculate baseline force at 0 Ah ($F_0$)
+      simState.baselineForce_F0 = NOMINAL_FRESH_F0 + cycleGrowth + deadLiContribution;
+
+      // 2. Reversible intercalation swelling ($F_{\text{rev}}(Q)$)
+      // Nonlinear graphite phase transition curves + hysteresis loop offset
+      const normalizedQ = Math.max(0, Math.min(1.0, simState.Q / NOMINAL_CAPACITY));
+      
+      // Stage transition stiffness curve
+      const reversibleIntercalationForce = 
+        (7.2 * normalizedQ) + 
+        (2.1 * Math.pow(normalizedQ, 2.5)) + 
+        (simState.hysteresisSign * 0.38 * Math.sin(normalizedQ * Math.PI));
+
+      // Thermal expansion contribution ($\alpha \Delta T$)
+      const thermalForce = (simState.temperature - 20.0) * 0.022; // kN
+
+      // Total structural force exerted on tie-bolts
+      simState.currentForce = Math.max(0, simState.baselineForce_F0 + reversibleIntercalationForce + thermalForce);
+
+      // 3. Observer: Autonomous Derating Controller
+      // If F_0 creeps up or live F approaches Yield, derate allowable maximum Q
+      const baselineCreep = simState.baselineForce_F0 - NOMINAL_FRESH_F0;
+      if (simState.adaptiveDeratingEnabled && baselineCreep > 0.5) {
+        // Quadratic derating envelope to cap peak expansion under 22.0 kN
+        const excessRatio = Math.min(1.0, baselineCreep / (TI_YIELD_FORCE - NOMINAL_FRESH_F0));
+        simState.deratingEnvelope = Math.max(45.0, 100.0 - (excessRatio * 62.0));
+      } else {
+        simState.deratingEnvelope = 100.0;
+      }
+
+      // 4. Update HUD & Alert Banners
+      updateTelemetryUI();
+    }
+
+    function updateTelemetryUI() {
+      // Header Quick Metrics
+      document.getElementById('headerBoltTension').innerText = `${simState.currentForce.toFixed(1)} kN`;
+      document.getElementById('headerDerateEnvelope').innerText = `${simState.deratingEnvelope.toFixed(1)}% SOC Max`;
+
+      // Stat Readouts below Chart
+      document.getElementById('statBaselineForce').innerText = `${simState.baselineForce_F0.toFixed(2)} kN`;
+      document.getElementById('statLiveForce').innerText = `${simState.currentForce.toFixed(2)} kN`;
+      document.getElementById('statDeadLiMass').innerText = `${simState.deadLiMass.toFixed(2)} g`;
+      
+      const liveMargin = ((TI_YIELD_FORCE - simState.currentForce) / TI_YIELD_FORCE);
+      const mosFormatted = (liveMargin * 2.5).toFixed(2);
+      document.getElementById('yieldMarginValue').innerText = `${liveMargin > 0 ? '+' : ''}${mosFormatted} MOS`;
+
+      // Slider Val Readouts
+      document.getElementById('sliderQVal').innerText = `${simState.Q.toFixed(1)} Ah (${((simState.Q / NOMINAL_CAPACITY) * 100).toFixed(0)}% SOC)`;
+      document.getElementById('sliderTempVal').innerText = `${simState.temperature.toFixed(1)} °C`;
+      document.getElementById('sliderCyclesVal').innerText = `${simState.cycles} Cycles`;
+
+      const maxAllowQ = (NOMINAL_CAPACITY * (simState.deratingEnvelope / 100.0)).toFixed(1);
+      document.getElementById('maxAllowableQReadout').innerText = `Max Q: ${maxAllowQ} Ah`;
+      document.getElementById('liveEnvelopePercent').innerText = `${simState.deratingEnvelope.toFixed(1)}% Allowed`;
+
+      // Structural Yield Warning States
+      const banner = document.getElementById('interventionBanner');
+      const iconContainer = document.getElementById('statusIconContainer');
+      const badge = document.getElementById('activeSafetyModeBadge');
+      const narrative = document.getElementById('safetyNarrative');
+      const headerBadge = document.getElementById('headerStatusBadge');
+
+      if (simState.currentForce >= TI_YIELD_FORCE) {
+        // Critical Breach Danger
+        headerBadge.className = "text-rose-400 font-bold animate-pulse";
+        headerBadge.innerText = "CRITICAL_CONTAINMENT_BREACH";
+        
+        banner.className = "p-3 rounded-lg border border-rose-800 bg-rose-950/70 backdrop-blur flex items-center justify-between glow-rose transition-all";
+        iconContainer.className = "p-2 rounded bg-rose-900 border border-rose-500/40 text-rose-300";
+        iconContainer.innerHTML = '<i data-lucide="alert-triangle" class="w-5 h-5"></i>';
+        
+        badge.className = "px-2 py-0.5 text-xs font-mono font-bold rounded bg-rose-500/30 text-rose-200 border border-rose-500";
+        badge.innerText = "EMERGENCY: TIE-ROD PLASTIC YIELD IMMINENT";
+        narrative.innerText = "Titanium bolt stress exceeds 26.5 kN limit. High danger of prismatic rupture and lunar thermal runaway. Emergency discharge required.";
+        document.getElementById('yieldMarginValue').className = "text-rose-400 font-bold ml-1 text-sm";
+      } else if (simState.baselineForce_F0 > 14.5 || simState.currentForce > MAX_CONTAINMENT_SAFETY_FORCE) {
+        // Autonomous Throttling Mode
+        headerBadge.className = "text-amber-400 font-bold";
+        headerBadge.innerText = "AUTONOMOUS_DERATE_ACTIVE";
+
+        banner.className = "p-3 rounded-lg border border-amber-800 bg-amber-950/50 backdrop-blur flex items-center justify-between transition-all";
+        iconContainer.className = "p-2 rounded bg-amber-900 border border-amber-500/40 text-amber-300";
+        iconContainer.innerHTML = '<i data-lucide="shield-alert" class="w-5 h-5"></i>';
+
+        badge.className = "px-2 py-0.5 text-xs font-mono font-bold rounded bg-amber-500/20 text-amber-300 border border-amber-500/40";
+        badge.innerText = `ACTIVE DERATING: CUT-OFF ENVELOPE CAPPED AT ${simState.deratingEnvelope.toFixed(0)}%`;
+        narrative.innerText = `Irreversible dead Li baseline shift detected (F_0 = ${simState.baselineForce_F0.toFixed(2)} kN). Charge ceiling lowered to preserve containment plate elastic life.`;
+        document.getElementById('yieldMarginValue').className = "text-amber-400 font-bold ml-1 text-sm";
+      } else {
+        // Nominal
+        headerBadge.className = "text-emerald-400 font-bold";
+        headerBadge.innerText = "NOMINAL_CONTAINMENT";
+
+        banner.className = "p-3 rounded-lg border border-slate-800 bg-slate-900/60 backdrop-blur flex items-center justify-between transition-all";
+        iconContainer.className = "p-2 rounded bg-emerald-950 border border-emerald-500/30 text-emerald-400";
+        iconContainer.innerHTML = '<i data-lucide="shield-check" class="w-5 h-5"></i>';
+
+        badge.className = "px-2 py-0.5 text-xs font-mono font-bold rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40";
+        badge.innerText = "ACTIVE MODE: NOMINAL LUNAR TRAVERSE";
+        narrative.innerText = `Reversible intercalation swelling within elastic bounds (F_0 < 14.0 kN). Restraining endplates operating safely.`;
+        document.getElementById('yieldMarginValue').className = "text-emerald-400 font-bold ml-1 text-sm";
+      }
+
+      // Re-init lucide icons in dynamic containers
+      lucide.createIcons();
+    }
+
+    // ==============================================================
+    // USER CONTROL HANDLERS & FAULT INJECTION
+    // ==============================================================
+    function handleControlUpdate() {
+      const qInput = parseFloat(document.getElementById('sliderQ').value);
+      const tempInput = parseFloat(document.getElementById('sliderTemp').value);
+      const cyclesInput = parseInt(document.getElementById('sliderCycles').value);
+      const adaptiveDerating = document.getElementById('toggleAdaptiveDerating').checked;
+
+      // Detect charge direction for hysteresis loop
+      if (qInput > simState.Q) {
+        simState.hysteresisSign = 1; // Charging
+      } else if (qInput < simState.Q) {
+        simState.hysteresisSign = -1; // Discharging
+      }
+
+      simState.Q = qInput;
+      simState.temperature = tempInput;
+      simState.cycles = cyclesInput;
+      simState.adaptiveDeratingEnabled = adaptiveDerating;
+
+      computePhysics();
+      updateFQChart();
+      drawPhysicalPack();
+    }
+
+    function injectRapidDegradation() {
+      // Simulate extreme sub-zero rapid charging creating mossy dead lithium plating
+      simState.deadLiMass += 3.8;
+      simState.cycles += 350;
+      simState.temperature = -35.0;
+
+      document.getElementById('sliderCycles').value = simState.cycles;
+      document.getElementById('sliderTemp').value = simState.temperature;
+
+      computePhysics();
+      updateFQChart();
+      drawPhysicalPack();
+    }
+
+    function resetPackState() {
+      simState.deadLiMass = 0.2;
+      simState.cycles = 10;
+      simState.temperature = 20.0;
+      simState.Q = 45.0;
+
+      document.getElementById('sliderQ').value = 45;
+      document.getElementById('sliderTemp').value = 20;
+      document.getElementById('sliderCycles').value = 10;
+
+      computePhysics();
+      updateFQChart();
+      drawPhysicalPack();
+    }
+
+    // ==============================================================
+    // CHART.JS SETUP & REAL-TIME UPDATES
+    // ==============================================================
+    function initCharts() {
+      // 1. Primary Phase Space Chart: F vs Q
+      const ctxFQ = document.getElementById('fqChart').getContext('2d');
+      
+      // Generate synthetic Nominal Baseline Curve
+      const nominalCurve = [];
+      const hazardCeiling = [];
+      for (let q = 0; q <= 90; q += 5) {
+        const normQ = q / 90.0;
+        const nomF = NOMINAL_FRESH_F0 + (7.2 * normQ) + (2.1 * Math.pow(normQ, 2.5));
+        nominalCurve.push({ x: q, y: nomF });
+        hazardCeiling.push({ x: q, y: TI_YIELD_FORCE });
+      }
+
+      fqChart = new Chart(ctxFQ, {
+        type: 'scatter',
+        data: {
+          datasets: [
+            {
+              label: 'Structural Yield Limit (26.5 kN)',
+              data: hazardCeiling,
+              showLine: true,
+              borderColor: 'rgba(244, 63, 94, 0.8)',
+              borderWidth: 2,
+              borderDash: [5, 5],
+              pointRadius: 0,
+              fill: false
+            },
+            {
+              label: 'Fresh Cell Nominal Corridor',
+              data: nominalCurve,
+              showLine: true,
+              borderColor: 'rgba(56, 189, 248, 0.5)',
+              borderWidth: 1.5,
+              borderDash: [3, 3],
+              pointRadius: 0,
+              fill: false
+            },
+            {
+              label: 'Active System State (Q, F)',
+              data: [{ x: simState.Q, y: simState.currentForce }],
+              backgroundColor: '#38bdf8',
+              borderColor: '#ffffff',
+              borderWidth: 2,
+              pointRadius: 7,
+              pointHoverRadius: 9
+            },
+            {
+              label: 'Irreversible Baseline Offset F0',
+              data: [{ x: 0, y: simState.baselineForce_F0 }],
+              backgroundColor: '#f59e0b',
+              borderColor: '#ffffff',
+              borderWidth: 2,
+              pointRadius: 6
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: { duration: 150 },
+          scales: {
+            x: {
+              type: 'linear',
+              position: 'bottom',
+              min: 0,
+              max: 95,
+              title: {
+                display: true,
+                text: 'Delivered Electric Charge Q (Ah)',
+                color: '#94a3b8',
+                font: { family: 'JetBrains Mono', size: 11 }
+              },
+              grid: { color: 'rgba(30, 41, 59, 0.6)' },
+              ticks: { color: '#64748b', font: { family: 'JetBrains Mono' } }
+            },
+            y: {
+              min: 10,
+              max: 30,
+              title: {
+                display: true,
+                text: 'Endplate Restraint Force F (kN)',
+                color: '#94a3b8',
+                font: { family: 'JetBrains Mono', size: 11 }
+              },
+              grid: { color: 'rgba(30, 41, 59, 0.6)' },
+              ticks: { color: '#64748b', font: { family: 'JetBrains Mono' } }
+            }
+          },
+          plugins: {
+            legend: {
+              labels: {
+                color: '#cbd5e1',
+                font: { family: 'Inter', size: 10 },
+                boxWidth: 12
+              }
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return `${context.dataset.label}: (${context.parsed.x.toFixed(1)} Ah, ${context.parsed.y.toFixed(2)} kN)`;
+                }
+              }
+            }
+          }
+        }
+      });
+
+      // 2. Secondary Time Series Chart: Force History
+      const ctxForceHist = document.getElementById('forceHistoryChart').getContext('2d');
+      forceHistoryChart = new Chart(ctxForceHist, {
+        type: 'line',
+        data: {
+          labels: historyData.labels,
+          datasets: [
+            {
+              label: 'Force F(t)',
+              data: historyData.force,
+              borderColor: '#38bdf8',
+              backgroundColor: 'rgba(56, 189, 248, 0.1)',
+              borderWidth: 2,
+              fill: true,
+              tension: 0.2,
+              pointRadius: 0
+            },
+            {
+              label: 'Yield Limit',
+              data: historyData.limit,
+              borderColor: 'rgba(244, 63, 94, 0.7)',
+              borderWidth: 1.5,
+              borderDash: [4, 4],
+              pointRadius: 0
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          scales: {
+            x: { display: false },
+            y: {
+              min: 10,
+              max: 29,
+              grid: { color: 'rgba(30, 41, 59, 0.4)' },
+              ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 9 } }
+            }
+          },
+          plugins: { legend: { display: false } }
+        }
+      });
+
+      // 3. Secondary Time Series Chart: Derating Envelope
+      const ctxDerating = document.getElementById('deratingChart').getContext('2d');
+      deratingChart = new Chart(ctxDerating, {
+        type: 'line',
+        data: {
+          labels: historyData.labels,
+          datasets: [
+            {
+              label: 'Allowed Envelope %',
+              data: historyData.derating,
+              borderColor: '#f59e0b',
+              backgroundColor: 'rgba(245, 158, 11, 0.1)',
+              borderWidth: 2,
+              fill: true,
+              tension: 0.2,
+              pointRadius: 0
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          scales: {
+            x: { display: false },
+            y: {
+              min: 40,
+              max: 105,
+              grid: { color: 'rgba(30, 41, 59, 0.4)' },
+              ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 9 } }
+            }
+          },
+          plugins: { legend: { display: false } }
+        }
+      });
+    }
+
+    function updateFQChart() {
+      if (!fqChart) return;
+      
+      // Update Live State Point
+      fqChart.data.datasets[2].data = [{ x: simState.Q, y: simState.currentForce }];
+      
+      // Update Baseline Offset Point F_0
+      fqChart.data.datasets[3].data = [{ x: 0, y: simState.baselineForce_F0 }];
+
+      fqChart.update('none');
+    }
+
+    // Real-Time Background Tick Loop (Throttled Telemetry Stream)
+    let tickCounter = 0;
+    function simulationTick() {
+      simState.timeSeconds += 0.5;
+      tickCounter++;
+
+      // Tiny harmonic vibration mimicking rover driving across lunar regolith terrain
+      const terrainMicroVibration = (Math.sin(simState.timeSeconds * 3.5) * 0.08);
+      const reportedForce = simState.currentForce + terrainMicroVibration;
+
+      // Update Historical Datasets
+      historyData.labels.push(`${simState.timeSeconds.toFixed(0)}s`);
+      historyData.force.push(reportedForce);
+      historyData.limit.push(TI_YIELD_FORCE);
+      historyData.derating.push(simState.deratingEnvelope);
+      historyData.usableQ.push(NOMINAL_CAPACITY * (simState.deratingEnvelope / 100.0));
+
+      if (historyData.labels.length > MAX_HISTORY) {
+        historyData.labels.shift();
+        historyData.force.shift();
+        historyData.limit.shift();
+        historyData.derating.shift();
+        historyData.usableQ.shift();
+      }
+
+      // Update secondary plots every 2 ticks to maintain 60fps UI
+      if (tickCounter % 2 === 0) {
+        if (forceHistoryChart) forceHistoryChart.update('none');
+        if (deratingChart) deratingChart.update('none');
+        drawPhysicalPack();
+      }
+    }
+
+    // ==============================================================
+    // INITIALIZATION ON WINDOW LOAD
+    // ==============================================================
+    window.onload = function() {
+      lucide.createIcons();
+      resizeCanvas();
+      initCharts();
+      computePhysics();
+      updateFQChart();
+      drawPhysicalPack();
+
+      // Start Simulation Loop at 25 Hz
+      setInterval(simulationTick, 200);
+
+      // Trigger MathJax equation formatting immediately
+      if (window.MathJax && window.MathJax.typesetPromise) {
+        window.MathJax.typesetPromise();
+      }
+    };
+  </script>
+</body>
+</html>
